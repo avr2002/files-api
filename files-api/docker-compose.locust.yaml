@@ -1,0 +1,22 @@
+# run a battery of requests to the Files API simulating user traffic
+#
+# Note: this docker-compose file is not meant to be used standalone.
+# Rather, it augments the main docker-compose.yaml file.
+#
+# You can union docker-compose files using the `--file` flag.
+# For example:
+#
+#   docker compose up --file docker-compose.yaml --file docker-compose.locust.yaml
+
+services:
+
+  locust:
+    image: locustio/locust:latest
+    command: >
+      --locustfile /locustfile.py --host=http://fastapi:8000 --users 1 --spawn-rate 1 --autostart
+    # --locustfile /locustfile.py --host=https://3rbeuvjyd3.execute-api.us-west-2.amazonaws.com/prod --users 1 --spawn-rate 1 --autostart
+    # --locustfile /locustfile.py --host=https://j0o3bozns6.execute-api.ap-south-1.amazonaws.com/prod/ --users 1 --spawn-rate 1 --autostart
+    ports:
+      - "8089:8089"
+    volumes:
+      - ./scripts/locustfile.py:/locustfile.py

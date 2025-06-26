@@ -1,0 +1,763 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Files API",
+    "summary": "Store and Retrieve Files.",
+    "description": "<a href=\"https://github.com/avr2002\" target=\"_blank\">            <img src=\"https://img.shields.io/badge/Maintained%20by-Amit%20Vikram%20Raj-F4BBFF?style=for-the-badge\">        </a>\n\n| Helpful Links | Notes |\n| --- | --- |\n| [MLOps Club](https://mlops-club.org) | ![MLOps Club](https://img.shields.io/badge/Memember%20of-MLOps%20Club-05998B?style=for-the-badge) |\n| [Project Repo](https://github.com/avr2002/cloud-engineering-project) | `avr2002/cloud-engineering-project` |\n",
+    "contact": {
+      "name": "Amit Vikram Raj",
+      "url": "https://www.linkedin.com/in/avr27/",
+      "email": "avr13405@gmail.com"
+    },
+    "license": {
+      "name": "Apache 2.0",
+      "identifier": "MIT"
+    },
+    "version": "v1"
+  },
+  "paths": {
+    "/v1/files/{file_path}": {
+      "put": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Upload or Update a File",
+        "description": "Upload or Update a File.",
+        "operationId": "Files-upload_file",
+        "parameters": [
+          {
+            "name": "file_path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The path to the file.",
+              "title": "File Path"
+            },
+            "description": "The path to the file."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_Files-upload_file"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "File uploaded successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PutFileResponse"
+                },
+                "example": {
+                  "file_path": "path/to/file.txt",
+                  "message": "New file uploaded at path: path/to/file.txt"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "File updated successfully.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "file_path": "path/to/file.txt",
+                  "message": "Existing file updated at path: path/to/file.txt"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/PutFileResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "head": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Retrieve File Metadata",
+        "description": "Retrieve File Metadata.\n\nNote: by convention, HEAD requests MUST NOT return a body in the response.",
+        "operationId": "Files-get_file_metadata",
+        "parameters": [
+          {
+            "name": "file_path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "File Path"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "headers": {
+              "Content-Type": {
+                "description": "The [MIME type](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types) of the file.",
+                "example": "text/plain",
+                "schema": {
+                  "type": "string",
+                  "format": "text"
+                }
+              },
+              "Content-Length": {
+                "description": "The size of the file in bytes.",
+                "example": 512,
+                "schema": {
+                  "type": "integer",
+                  "format": "integer"
+                }
+              },
+              "Last-Modified": {
+                "description": "The last modified date of the file.",
+                "example": "Thu, 01 Jan 2022 00:00:00 GMT",
+                "schema": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "File not found for the given `file_path`.",
+            "headers": {
+              "X-Error": {
+                "description": "Error message indicating the file was not found.",
+                "example": "File not found: `path/to/file.txt`",
+                "schema": {
+                  "type": "string",
+                  "format": "text"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Retrieve a File",
+        "description": "Retrieve a File.",
+        "operationId": "Files-get_file",
+        "parameters": [
+          {
+            "name": "file_path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The path to the file.",
+              "title": "File Path"
+            },
+            "description": "The path to the file."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "format": "text"
+                },
+                "example": "File Content."
+              },
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            },
+            "headers": {
+              "Content-Type": {
+                "description": "The [MIME type](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types) of the file.",
+                "example": "text/plain",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Length": {
+                "description": "The size of the file in bytes.",
+                "example": 512,
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "File not found for the given `file_path`.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": "File not found: path/to/file.txt"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Delete a File",
+        "description": "Delete a file.\n\nNOTE: DELETE requests MUST NOT return a body in the response.",
+        "operationId": "Files-delete_file",
+        "parameters": [
+          {
+            "name": "file_path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The path to the file.",
+              "title": "File Path"
+            },
+            "description": "The path to the file."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "File deleted successfully."
+          },
+          "404": {
+            "description": "File not found."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/files": {
+      "get": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "List Files",
+        "description": "List Files with Pagination.",
+        "operationId": "Files-list_files",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 10,
+              "title": "Page Size"
+            }
+          },
+          {
+            "name": "directory",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "",
+              "title": "Directory"
+            }
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Page Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetFilesResponse"
+                },
+                "examples": {
+                  "With Pagination": {
+                    "value": {
+                      "files": [
+                        {
+                          "file_path": "path/to/file1.txt",
+                          "last_modified": "2021-09-01T12:00:00",
+                          "size_bytes": 512
+                        },
+                        {
+                          "file_path": "path/to/file2.txt",
+                          "last_modified": "2021-09-02T12:00:00",
+                          "size_bytes": 256
+                        }
+                      ],
+                      "next_page_token": "next_page_token_value"
+                    }
+                  },
+                  "No Pages Left": {
+                    "value": {
+                      "files": [
+                        {
+                          "file_path": "path/to/file1.txt",
+                          "last_modified": "2021-09-01T12:00:00",
+                          "size_bytes": 512
+                        },
+                        {
+                          "file_path": "path/to/file2.txt",
+                          "last_modified": "2021-09-02T12:00:00",
+                          "size_bytes": 256
+                        }
+                      ],
+                      "next_page_token": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/files/generated": {
+      "post": {
+        "tags": [
+          "Generate Files"
+        ],
+        "summary": "AI Generated Files",
+        "description": "Generate a File using AI.\n\n```\nSupported file types(Case):\n- Text: .txt\n- Image: .png, .jpg, .jpeg\n- Text-to-Speech: .mp3, .opus, .aac, .flac, .wav, .pcm\n```",
+        "operationId": "Generate Files-generate_file_using_openai",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateFilesBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostFileResponse"
+                },
+                "examples": {
+                  "Text": {
+                    "value": {
+                      "file_path": "path/to/file.txt",
+                      "message": "New text file generated and uploaded at path: path/to/file.txt"
+                    }
+                  },
+                  "Image": {
+                    "value": {
+                      "file_path": "path/to/image.png",
+                      "message": "New image file generated and uploaded at path: path/to/image.png"
+                    }
+                  },
+                  "Text-to-Speech": {
+                    "value": {
+                      "file_path": "path/to/speech.mp3",
+                      "message": "New Text-to-Speech file generated and uploaded at path: path/to/speech.mp3"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "File already exists.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostFileResponse"
+                },
+                "example": {
+                  "file_path": "path/to/file.txt",
+                  "message": "File already exists. Please use a different file name."
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_Files-upload_file": {
+        "properties": {
+          "file_content": {
+            "type": "string",
+            "format": "binary",
+            "title": "File Content",
+            "description": "The file to upload."
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_content"
+        ],
+        "title": "Body_Files-upload_file"
+      },
+      "FileMetadata": {
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "title": "File Path",
+            "description": "The path to the file.",
+            "example": "path/to/file.txt"
+          },
+          "last_modified": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Modified",
+            "description": "The last modified timestamp of the file.",
+            "example": "2021-09-01T12:00:00"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes",
+            "description": "The size of the file in bytes.",
+            "example": 512
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_path",
+          "last_modified",
+          "size_bytes"
+        ],
+        "title": "FileMetadata",
+        "description": "`Metadata` of a file."
+      },
+      "GenerateFilesBody": {
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "title": "File Path",
+            "description": "The path to the file to generate.",
+            "example": "path/to/file.txt"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt",
+            "description": "The prompt to generate the file content.",
+            "example": "Generate a text file."
+          },
+          "file_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GeneratedFileType"
+              }
+            ],
+            "description": "The type of file to generate.(case in-sensitive)",
+            "example": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_path",
+          "prompt",
+          "file_type"
+        ],
+        "title": "GenerateFilesBody",
+        "description": "Request Body for `POST /v1/files/generated`."
+      },
+      "GeneratedFileType": {
+        "type": "string",
+        "enum": [
+          "Text",
+          "Image",
+          "Text-to-Speech"
+        ],
+        "title": "GeneratedFileType",
+        "description": "The type of file generated by OpenAI."
+      },
+      "GetFilesResponse": {
+        "properties": {
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/FileMetadata"
+            },
+            "type": "array",
+            "title": "Files"
+          },
+          "next_page_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Page Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "files",
+          "next_page_token"
+        ],
+        "title": "GetFilesResponse",
+        "description": "Response model for `GET /v1/files/:file_path`.",
+        "examples": [
+          {
+            "value": {
+              "files": [
+                {
+                  "file_path": "path/to/file1.txt",
+                  "last_modified": "2021-09-01T12:00:00",
+                  "size_bytes": 512
+                },
+                {
+                  "file_path": "path/to/file2.txt",
+                  "last_modified": "2021-09-02T12:00:00",
+                  "size_bytes": 256
+                }
+              ],
+              "next_page_token": "next_page_token_value"
+            }
+          },
+          {
+            "value": {
+              "files": [
+                {
+                  "file_path": "path/to/file1.txt",
+                  "last_modified": "2021-09-01T12:00:00",
+                  "size_bytes": 512
+                },
+                {
+                  "file_path": "path/to/file2.txt",
+                  "last_modified": "2021-09-02T12:00:00",
+                  "size_bytes": 256
+                }
+              ],
+              "next_page_token": "null"
+            }
+          }
+        ]
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "PostFileResponse": {
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "title": "File Path",
+            "description": "The path to the file.",
+            "example": "path/to/file.txt"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "The message indicating the status of the operation.",
+            "example": "New file generated and uploaded at path: path/to/file.txt"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_path",
+          "message"
+        ],
+        "title": "PostFileResponse",
+        "description": "Response model for `POST /v1/files/generated/:file_path`.",
+        "examples": [
+          {
+            "value": {
+              "file_path": "path/to/file.txt",
+              "message": "New text file generated and uploaded at path: path/to/file.txt"
+            }
+          },
+          {
+            "value": {
+              "file_path": "path/to/image.png",
+              "message": "New image file generated and uploaded at path: path/to/image.png"
+            }
+          },
+          {
+            "value": {
+              "file_path": "path/to/speech.mp3",
+              "message": "New Text-to-Speech file generated and uploaded at path: path/to/speech.mp3"
+            }
+          }
+        ]
+      },
+      "PutFileResponse": {
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "title": "File Path",
+            "description": "The path to the file.",
+            "example": "path/to/file.txt"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "The message indicating the status of the operation.",
+            "example": "New file uploaded at path: path/to/file.txt"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_path",
+          "message"
+        ],
+        "title": "PutFileResponse",
+        "description": "Response model for `PUT /v1/files/:file_path`.",
+        "200": {
+          "content": {
+            "application/json": {
+              "example": {
+                "file_path": "path/to/file.txt",
+                "message": "Existing file updated at path: path/to/file.txt"
+              }
+            }
+          }
+        },
+        "201": {
+          "content": {
+            "application/json": {
+              "example": {
+                "file_path": "path/to/file.txt",
+                "message": "New file uploaded at path: path/to/file.txt"
+              }
+            }
+          }
+        }
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
