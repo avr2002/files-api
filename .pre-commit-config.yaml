@@ -12,9 +12,10 @@ repos:
       - id: generate-and-diff-openapi-schema
         name: Generate and Assert that OpenAPI Schema is up to date
         entry: >-
-          python ./files-api/scripts/generate-openapi.py generate-and-diff
-            --existing-spec ./files-api/openapi.json
-            --output-spec ./files-api/openapi.json
+          cd files-api && \
+          uv run ./scripts/generate-openapi.py generate-and-diff
+            --existing-spec ./openapi.json
+            --output-spec ./openapi.json
             --fail-on-diff
         language: system
         # run this hook if openapi.json or any of the src/*.py files change (since those files generate openapi.json)
@@ -30,8 +31,10 @@ repos:
           bash -c '
           set -ex;
 
+          cd files-api;
+
           # generate the OpenAPI spec from the latest fastapi app code;
-          python ./files-api/scripts/generate-openapi.py generate --output-spec files-api/openapi.json;
+          uv run ./scripts/generate-openapi.py generate --output-spec openapi.json;
 
           # Determine which ref to use: remote if available, otherwise local
           if git show refs/heads/main:files-api/openapi.json > /dev/null 2>&1; then
@@ -41,7 +44,7 @@ repos:
           fi
 
           # Load the OpenAPI schema from the determined ref
-          git show $OPENAPI_REF > ./files-api/openapi-main.json
+          git show $OPENAPI_REF > ./openapi-main.json
 
           # set the openapi-main.json to be deleted when this hook finishes;
           trap "rm openapi-main.json" EXIT;
@@ -51,8 +54,8 @@ repos:
           docker run --rm \
             --volume $PWD:/data \
             tufin/oasdiff changelog \
-              /data/files-api/openapi-main.json \
-              /data/files-api/openapi.json \
+              /data/openapi-main.json \
+              /data/openapi.json \
               --fail-on ERR
           '
         language: system

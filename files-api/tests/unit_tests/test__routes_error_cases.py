@@ -2,8 +2,8 @@
 
 from fastapi import status
 from fastapi.testclient import TestClient
-
 from files_api.schemas import DEFAULT_GET_FILES_MAX_PAGE_SIZE
+
 from tests.consts import TEST_BUCKET_NAME
 from tests.utils import delete_s3_bucket
 

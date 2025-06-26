@@ -2,7 +2,6 @@
 
 from fastapi import status
 from fastapi.testclient import TestClient
-
 from files_api.schemas import GeneratedFileType
 
 TEST_FILE_PATH = "some/nested/path/file.txt"

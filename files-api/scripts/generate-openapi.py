@@ -13,7 +13,6 @@ from typing import (
 )
 
 from fastapi.openapi.utils import get_openapi
-
 from files_api.main import create_app
 from files_api.settings import Settings
 
@@ -69,8 +68,7 @@ def main() -> None:
 
 
 def parse_args() -> Args:
-    """
-    Parse command-line arguments.
+    """Parse command-line arguments.
 
     :return: Parsed command-line arguments as a NamedTuple.
     """
@@ -114,8 +112,7 @@ def parse_args() -> Args:
 
 
 def generate_openapi() -> dict:
-    """
-    Generate the OpenAPI schema from the FastAPI app.
+    """Generate the OpenAPI schema from the FastAPI app.
 
     Official docs for generating the FastAPI schema:
     https://fastapi.tiangolo.com/how-to/extending-openapi/?h=get_open#generate-the-openapi-schema
@@ -143,8 +140,7 @@ def generate_openapi() -> dict:
 
 
 def write_openapi_to_disk(openapi_schema: dict, outfile_path: Path) -> None:
-    """
-    Write the OpenAPI schema to disk.
+    """Write the OpenAPI schema to disk.
 
     :param openapi_schema: The OpenAPI schema to write to disk.
     :param outfile_path: The path to the output file.
@@ -153,8 +149,7 @@ def write_openapi_to_disk(openapi_schema: dict, outfile_path: Path) -> None:
 
 
 def get_diff_between_openapi_schemas(input_spec: Path, generated_spec: dict) -> List[Diff]:
-    """
-    Get the differences between the input and generated OpenAPI schemas.
+    """Get the differences between the input and generated OpenAPI schemas.
 
     :param input_spec: The path to the input OpenAPI schema JSON file.
     :param generated_spec: The generated OpenAPI schema.
@@ -169,8 +164,7 @@ def get_diff_between_openapi_schemas(input_spec: Path, generated_spec: dict) -> 
 
 
 def diff_dicts(dict_a: dict, dict_b: dict, path: str = "") -> Generator[Diff, None, None]:  # noqa: R701
-    """
-    Yield the differences between two dictionaries.
+    """Yield the differences between two dictionaries.
 
     :param d1: The first dictionary to compare.
     :param d2: The second dictionary to compare.
@@ -192,8 +186,7 @@ def diff_dicts(dict_a: dict, dict_b: dict, path: str = "") -> Generator[Diff, No
 
 
 def diff_lists(list_a: list, list_b: list, path: str) -> Generator[Diff, None, None]:
-    """
-    Yield the differences between two lists.
+    """Yield the differences between two lists.
 
     :param l1: The first list to compare.
     :param l2: The second list to compare.

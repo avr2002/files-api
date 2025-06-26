@@ -32,8 +32,7 @@ def object_exists_in_s3(  # type: ignore
     object_key: str,
     s3_client: Optional["S3Client"] = None,
 ) -> bool:
-    """
-    Check if an object exists in the S3 bucket using head_object.
+    """Check if an object exists in the S3 bucket using head_object.
 
     :param bucket_name: Name of the S3 bucket.
     :param object_key: Key of the object to check.
@@ -58,8 +57,7 @@ def fetch_s3_object(
     object_key: str,
     s3_client: Optional["S3Client"] = None,
 ) -> "GetObjectOutputTypeDef":
-    """
-    Fetch metadata of an object in the S3 bucket.
+    """Fetch metadata of an object in the S3 bucket.
 
     :param bucket_name: Name of the S3 bucket.
     :param object_key: Key of the object to fetch.
@@ -83,8 +81,7 @@ def fetch_s3_objects_using_page_token(
     max_keys: Union[int, None] = None,
     s3_client: Optional["S3Client"] = None,
 ) -> Tuple[List["ObjectTypeDef"], Union[str, None]]:
-    """
-    Fetch list of object keys and their metadata using a continuation token.
+    """Fetch list of object keys and their metadata using a continuation token.
 
     :param bucket_name: Name of the S3 bucket to list objects from.
     :param continuation_token: Token for fetching the next page of results where the last page left off.
@@ -114,8 +111,7 @@ def fetch_s3_objects_metadata(
     max_keys: Optional[int] = DEFAULT_MAX_KEYS,
     s3_client: Optional["S3Client"] = None,
 ) -> Tuple[List["ObjectTypeDef"], Union[str, None]]:
-    """
-    Fetch list of object keys and their metadata.
+    """Fetch list of object keys and their metadata.
 
     :param bucket_name: Name of the S3 bucket to list objects from.
     :param prefix: Prefix to filter objects by.

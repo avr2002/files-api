@@ -1,5 +1,4 @@
-"""
-Unit tests for cookiecutter.repo_name.
+"""Unit tests for cookiecutter.repo_name.
 
 This folder ideally has a parallel folder structure with the src/files_api/ folder.
 

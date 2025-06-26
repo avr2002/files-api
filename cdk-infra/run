@@ -1,0 +1,54 @@
+#!/bin/bash
+
+
+export AWS_PROFILE=sbox
+export AWS_REGION=us-east-1
+
+
+export THIS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
+export JSII_SILENCE_WARNING_UNTESTED_NODE_VERSION=1
+
+
+# Deploy your stack
+function deploy {
+    uv run -- \
+        cdk deploy --all \
+        --profile $AWS_PROFILE \
+        --region $AWS_REGION
+}
+
+
+# Delete your CDK stack
+function destroy {
+    uv run -- cdk destroy --profile $AWS_PROFILE --region $AWS_REGION
+}
+
+
+# look up the currently running ec2 instace by stack name and connect
+function connect-ec2 {
+  SERVER_STACK_NAME="awscdk-game-server"
+  INSTANCE_ID=$(aws ec2 describe-instances \
+    --filters \
+        "Name=tag:aws:cloudformation:stack-name,Values=$SERVER_STACK_NAME" \
+        "Name=instance-state-name,Values=running" \
+    --query "Reservations[0].Instances[0].InstanceId" \
+    --output text)
+  echo "Connecting to $INSTANCE_NAME ($INSTANCE_ID)..."
+  aws ssm start-session --target "$INSTANCE_ID"
+}
+
+
+
+# Bootstrap your CDK environment
+function cdk-bootstrap {
+    uv run -- cdk bootstrap --profile $AWS_PROFILE --region $AWS_REGION
+}
+
+function help {
+    echo "$0 <task> <args>"
+    echo "Tasks:"
+    compgen -A function | cat -n
+}
+
+TIMEFORMAT="Task completed in %3lR"
+time ${@:-default}

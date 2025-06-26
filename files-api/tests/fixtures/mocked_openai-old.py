@@ -3,7 +3,6 @@ import subprocess
 from typing import Generator
 
 import pytest
-
 from tests.consts import PROJECT_DIR
 
 

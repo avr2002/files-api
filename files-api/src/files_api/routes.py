@@ -197,8 +197,7 @@ async def list_files(
     },
 )
 async def get_file_metadata(file_path: str, request: Request, response: Response) -> Response:
-    """
-    Retrieve File Metadata.
+    """Retrieve File Metadata.
 
     Note: by convention, HEAD requests MUST NOT return a body in the response.
     """
@@ -313,8 +312,7 @@ async def get_file(
 async def delete_file(
     request: Request, response: Response, file_path: Annotated[str, Path(description="The path to the file.")]
 ) -> Response:
-    """
-    Delete a file.
+    """Delete a file.
 
     NOTE: DELETE requests MUST NOT return a body in the response.
     """
@@ -372,8 +370,7 @@ async def delete_file(
 async def generate_file_using_openai(
     request: Request, response: Response, body: GenerateFilesBody = Body(...)
 ) -> PostFileResponse:
-    """
-    Generate a File using AI.
+    """Generate a File using AI.
 
     ```
     Supported file types(Case):
@@ -412,7 +409,8 @@ async def generate_file_using_openai(
     else:
         response_format = body.file_path.split(".")[-1]
         file_content_bytes, content_type = await generate_text_to_speech(
-            prompt=body.prompt, response_format=response_format  # type: ignore
+            prompt=body.prompt,
+            response_format=response_format,  # type: ignore
         )
 
     # If content_type is None, try to guess it from the file path

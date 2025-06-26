@@ -70,8 +70,7 @@ async def generate_text_to_speech(
     openai_client: Optional[AsyncOpenAI] = None,
     response_format: Literal["mp3", "opus", "aac", "flac", "wav", "pcm"] = "mp3",
 ) -> Tuple[bytes, str]:
-    """
-    Generate text-to-speech audio from a given prompt.
+    """Generate text-to-speech audio from a given prompt.
 
     Returns the audio content as bytes and the MIME type as a string.
     """

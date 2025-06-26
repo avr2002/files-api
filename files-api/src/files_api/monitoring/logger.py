@@ -23,8 +23,7 @@ def configure_logger():
 
 
 def process_log_record(record: "loguru.Record") -> "loguru.Record":
-    r"""
-    Inject transformed metadata into each log record before they are passed to the formatter.
+    r"""Inject transformed metadata into each log record before they are passed to the formatter.
 
     For instance,
 

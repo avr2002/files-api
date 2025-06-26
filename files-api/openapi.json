@@ -7,7 +7,7 @@
     "contact": {
       "name": "Amit Vikram Raj",
       "url": "https://www.linkedin.com/in/avr27/",
-      "email": "avr13405@gmail.com"
+      "email": "raj.amitvikram@gmail.com"
     },
     "license": {
       "name": "Apache 2.0",
@@ -533,11 +533,7 @@
             "example": "Generate a text file."
           },
           "file_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/GeneratedFileType"
-              }
-            ],
+            "$ref": "#/components/schemas/GeneratedFileType",
             "description": "The type of file to generate.(case in-sensitive)",
             "example": "Text"
           }

@@ -20,8 +20,7 @@ from files_api.settings import Settings
 
 
 def custom_generate_unique_id(route: APIRoute):
-    """
-    Generate prettier `operationId`s in the OpenAPI schema.
+    """Generate prettier `operationId`s in the OpenAPI schema.
 
     These become the function names in generated client SDKs.
     """

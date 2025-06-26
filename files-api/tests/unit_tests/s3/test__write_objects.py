@@ -1,7 +1,6 @@
 """Test cases for `s3.write_objects`."""
 
 import boto3
-
 from files_api.s3.write_objects import upload_s3_object
 from tests.consts import TEST_BUCKET_NAME
 

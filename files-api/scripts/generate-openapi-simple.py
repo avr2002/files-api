@@ -1,6 +1,5 @@
 # pylint: disable=invalid-name
-"""
-Simple script that generates an OpenAPI schema for the FastAPI application.
+"""Simple script that generates an OpenAPI schema for the FastAPI application.
 
 If there is an existing OpenAPI schema on disk, this script will compare the
 generated schema to the existing schema. If they are different AT ALL, the script will
@@ -30,7 +29,6 @@ import sys
 from pathlib import Path
 
 from fastapi.openapi.utils import get_openapi
-
 from files_api.main import create_app
 from files_api.settings import Settings
 
@@ -49,8 +47,7 @@ def main() -> None:
 
 # pylint: disable=duplicate-code
 def generate_openapi() -> dict:
-    """
-    Generate the OpenAPI schema for the FastAPI application.
+    """Generate the OpenAPI schema for the FastAPI application.
 
     Official docs for generating the FastAPI schema:
     https://fastapi.tiangolo.com/how-to/extending-openapi/?h=get_open#generate-the-openapi-schema

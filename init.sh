@@ -38,7 +38,7 @@ popd
 # ├── tests
 # │  ├── unit
 # │  │  ├── __init__.py
-# │  │  └── test_server_infra_stack.py   
+# │  │  └── test_server_infra_stack.py
 # │  └── __init__.py
 # ├── .gitignore                         # we want this
 # ├── cdk.json                           # we want this

@@ -1,5 +1,4 @@
-"""
-Load/e2e test for the Files API.
+"""Load/e2e test for the Files API.
 
 Note, if you ever want to incorporate AWS SigV4 auth, it is straightforward. Reference
 this SO answer: https://stackoverflow.com/questions/74002094/aws-authentication-in-locust-io-python

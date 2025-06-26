@@ -1,5 +1,4 @@
-"""
-AWS Lambda handler using Mangum as an ASGI adapter for the FastAPI application.
+"""AWS Lambda handler using Mangum as an ASGI adapter for the FastAPI application.
 
 Repository: https://github.com/jordaneremieff/mangum
 """

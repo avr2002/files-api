@@ -18,7 +18,7 @@ except ImportError:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="update_dashboard", description="Update Files API Dashboard in Cloudwatch.")
     parser.add_argument("--dashboard-name", required=True, help="Name of the CloudWatch dashboard.")
-    parser.add_argument("--version-txt-path", required=True, help="Path to the version.txt file."),
+    (parser.add_argument("--version-txt-path", required=True, help="Path to the version.txt file."),)
     parser.add_argument(
         "--n-deployment-events",
         type=int,
@@ -41,10 +41,9 @@ def update_dashboard_widgets(
     reset: bool = False,
     cloudwatch_client: "CloudWatchClient" = None,
 ) -> None:
-    """
-    Update the dashboard widgets with vertical line for the deployment version.
+    """Update the dashboard widgets with vertical line for the deployment version.
 
-    args:
+    Args:
         :cloudwatch_client: CloudWatchClient: The CloudWatch client
         :dashboard_name: str: The name of the dashboard
         :verion_txt_path: Path: The path to the version.txt file
@@ -52,6 +51,7 @@ def update_dashboard_widgets(
         :reset: bool: Reset the dashboard widgets, i.e. remove all vertical annotations; default False
 
     returns: None
+
     """
     n_deployment_events = n_deployment_events or 10
     cloudwatch_client = cloudwatch_client or boto3.client("cloudwatch")
@@ -94,8 +94,7 @@ def add_vertical_annotations_to_widgets(
     version_txt_path: Path,
     n_deployment_events: int,
 ) -> dict:
-    """
-    Add a vertical annotation to all timeSeries widgets in the dashboard with the current deployment version.
+    """Add a vertical annotation to all timeSeries widgets in the dashboard with the current deployment version.
 
     Args:
         :dashboard_body: dict: The dashboard body from CloudWatch
@@ -103,6 +102,7 @@ def add_vertical_annotations_to_widgets(
         :n_deployment_events: int: The number of deployment events to keep for the annotations
     Returns:
         :dict: The updated dashboard body
+
     """
     # get deployment version
     version = get_deployment_verison(version_txt_path)
@@ -131,13 +131,13 @@ def add_vertical_annotations_to_widgets(
 
 
 def reset_dashboard_widgets(dashboard_body: dict) -> dict:
-    """
-    Reset the dashboard widgets by removing all vertical annotations.
+    """Reset the dashboard widgets by removing all vertical annotations.
 
     Args:
         :dashboard_body: dict: The dashboard body from CloudWatch
     Returns:
         :dict: The updated dashboard body
+
     """
     for widget in dashboard_body.get("widgets", []):
         widget_properties: dict = widget.get("properties") or dict()

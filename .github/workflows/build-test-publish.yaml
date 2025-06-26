@@ -57,7 +57,7 @@ jobs:
       # we need docker to run the oasdiff CLI pre-commit hook
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3.3.0
-      
+
       - name: Set up uv
         uses: astral-sh/setup-uv@v5
 
@@ -111,7 +111,7 @@ jobs:
         with:
           name: wheel-dist
           path: ./dist/
-      
+
       - name: Install Wheel & Run Tests against Wheel
         run: |
           uv venv

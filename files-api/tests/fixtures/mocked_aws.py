@@ -6,7 +6,6 @@ from typing import Generator
 import boto3
 import pytest
 from moto import mock_aws
-
 from tests.consts import TEST_BUCKET_NAME
 from tests.utils import delete_s3_bucket
 

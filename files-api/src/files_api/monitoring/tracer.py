@@ -84,8 +84,7 @@ def inject_trace_context_into_logger(
 
 
 def get_http_metadata(request: Request, response: Response) -> dict[str, str]:
-    """
-    Extract HTTP metadata from the request and response objects to log to X-Ray segments/subsegments.
+    """Extract HTTP metadata from the request and response objects to log to X-Ray segments/subsegments.
 
     Only specific metadata can be put on a segment/subsegment.
         Ref: https://docs.aws.amazon.com/xray/latest/devguide/xray-api-segmentdocuments.html#api-segmentdocuments-http
