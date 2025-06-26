@@ -110,8 +110,7 @@ jobs:
           source .venv/bin/activate
           uv pip install ./dist/*whl
           uv pip install --group test --group ci
-          COVERAGE_DIR="$(python -c 'import files_api; print(files_api.__path__[0])')"
-          poe test --cov="$COVERAGE_DIR"
+          poe test-ci
 
   publish:
     needs:

@@ -11,12 +11,17 @@ repos:
       # always re-generate and commit the latest openapi.json file before they can pass the build.
       - id: generate-and-diff-openapi-schema
         name: Generate and Assert that OpenAPI Schema is up to date
-        entry: >-
-          cd files-api && \
+        entry: |
+          bash -c '
+          THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+          pushd "$THIS_DIR/files-api"
           uv run ./scripts/generate-openapi.py generate-and-diff
             --existing-spec ./openapi.json
             --output-spec ./openapi.json
             --fail-on-diff
+          popd
+          '
         language: system
         # run this hook if openapi.json or any of the src/*.py files change (since those files generate openapi.json)
         files: ^files-api/openapi\.json$|^files-api/src/.*\.py$
@@ -31,7 +36,9 @@ repos:
           bash -c '
           set -ex;
 
-          cd files-api;
+          THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+          pushd "$THIS_DIR/files-api"
 
           # generate the OpenAPI spec from the latest fastapi app code;
           uv run ./scripts/generate-openapi.py generate --output-spec openapi.json;
@@ -47,7 +54,7 @@ repos:
           git show $OPENAPI_REF > ./openapi-main.json
 
           # set the openapi-main.json to be deleted when this hook finishes;
-          trap "rm openapi-main.json" EXIT;
+          trap "rm $THIS_DIR/files-api/openapi-main.json" EXIT;
 
           # compare the recently generated OpenAPI schema to the one in main and fail if ;
           # the recently generated one would introduce breaking changes;
@@ -57,6 +64,8 @@ repos:
               /data/openapi-main.json \
               /data/openapi.json \
               --fail-on ERR
+
+          popd
           '
         language: system
         # run this hook if openapi.json or any of the src/*.py files change (since those files generate openapi.json)
