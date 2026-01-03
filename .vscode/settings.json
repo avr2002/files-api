@@ -1,0 +1,44 @@
+// hover over or get autocompletion for the settings keys in this file to learn about what they do
+{
+    "editor.rulers": [
+        {
+            "column": 99,
+            "color": "gray"
+        },
+        {
+            "column": 119,
+            "color": "green"
+        }
+    ],
+    "editor.formatOnSave": true,
+    "python.testing.pytestArgs": ["tests"],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "testing.defaultGutterClickAction": "debug",
+    "python.analysis.inlayHints.pytestParameters": true,
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+    // https://github.com/astral-sh/ruff-vscode
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "ruff.configuration": "${workspaceFolder}/pyproject.toml",
+    "ruff.organizeImports": true,
+    // notebook settings
+    "notebook.formatOnSave.enabled": true,
+    "notebook.lineNumbers": "on",
+    "notebook.codeActionsOnSave": {
+        "notebook.source.fixAll": "explicit",
+        "notebook.source.organizeImports": "explicit"
+    },
+    // .py settings
+    "[python]": {
+        "editor.codeActionsOnSave": {
+            "source.fixAll": "explicit",
+            "source.organizeImports": "explicit"
+        },
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "charliermarsh.ruff",
+    },
+    "python.analysis.autoImportCompletions": true,
+    "python.analysis.indexing": true,
+    "python.languageServer": "Pylance",
+    "python.analysis.completeFunctionParens": true,
+}

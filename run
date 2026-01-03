@@ -1,0 +1,344 @@
+#!/usr/bin/env bash
+
+set -euox pipefail
+
+export AWS_PROFILE=sandbox
+export AWS_REGION=us-west-2
+export AWS_DEFAULT_REGION=${AWS_REGION}
+
+# aws account id/hash used to make a unique, but consistent bucket name
+export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --profile $AWS_PROFILE --query "Account" --output text)
+
+# Cache AWS account ID for 10 hours using bash-cache
+# AWS_ACCOUNT_ID=$(bc::cache 10h aws sts get-caller-identity --profile $AWS_PROFILE --query "Account" --output text)
+
+# Cache AWS account ID for 10 hours using our custom function
+# AWS_ACCOUNT_ID=$(get-cached-aws-account-id 10)
+AWS_ACCOUNT_ID_HASH=$(echo -n "${AWS_ACCOUNT_ID}" | sha256sum | cut -c5-8)
+export S3_BUCKET_NAME="python-aws-cloud-course-bucket-${AWS_ACCOUNT_ID_HASH}" # python-aws-cloud-course-bucket-6721
+
+
+THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+
+
+##########################
+# --- CDK Tasks  --- # #
+##########################
+
+cdk-bootstrap () {
+    npm install -g aws-cdk
+
+    # Use cached account ID here too
+    cdk bootstrap "aws://${AWS_ACCOUNT_ID}/${AWS_REGION}"
+}
+
+cdk-deploy () {
+	# Check if Docker is running
+	if ! docker info >/dev/null 2>&1; then
+		echo "Docker is not running. Please start Docker Desktop and try again."
+		exit 1
+	fi
+
+	if [ ! -f "$THIS_DIR/.openai.env" ]; then
+        echo "No OpenAI environment file found. Please create a .openai.env file with the OpenAI API key."
+        return 1
+    fi
+
+	source "$THIS_DIR/.openai.env"
+    cdk deploy --app 'uv run --script infra.py' '*' --profile $AWS_PROFILE --region $AWS_REGION
+}
+
+cdk-destroy () {
+    cdk destroy --app 'uv run --script infra.py' '*' --profile $AWS_PROFILE --region $AWS_REGION
+}
+
+
+############################
+# --- Run App  --- # #
+############################
+
+
+# start the FastAPI app locally with real AWS credentials
+function run {
+	# AWS_PROFILE=$AWS_PROFILE\
+	# S3_BUCKET_NAME=python-aws-cloud-course-bucket\
+	uv run -- uvicorn 'files_api.main:create_app' --factory --host 0.0.0.0 --port 8000 --reload
+}
+
+
+# start the FastAPI app in a Docker container
+run-docker() {
+	# Check if Docker is running
+	if ! docker info >/dev/null 2>&1; then
+		echo "Docker is not running. Please start Docker Desktop and try again."
+		exit 1
+	fi
+
+    aws configure export-credentials --profile $AWS_PROFILE --format env > .env
+    docker compose up --remove-orphans --build
+}
+
+# Run with Locust
+run-locust() {
+	# Check if Docker is running
+	if ! docker info >/dev/null 2>&1; then
+		echo "Docker is not running. Please start Docker Desktop and try again."
+		exit 1
+	fi
+
+    aws configure export-credentials --profile $AWS_PROFILE --format env > .env
+    docker compose \
+        --file docker-compose.yaml \
+        --file docker-compose.locust.yaml \
+        up \
+		--remove-orphans \
+        --build
+}
+
+
+# start the FastAPI app locally with actual AWS & OpenAI credentials
+run-local() {
+	if [ ! -f "$THIS_DIR/.openai.env" ]; then
+        echo "No OpenAI environment file found. Please create a .openai.env file with the OpenAI API key."
+        return 1
+    fi
+
+	source "$THIS_DIR/.openai.env"
+
+	# AWS_PROFILE=$AWS_PROFILE\
+	# S3_BUCKET_NAME=python-aws-cloud-course-bucket\
+	uv run -- uvicorn 'files_api.main:create_app' --factory --host 0.0.0.0 --port 8000 --reload
+
+	# Unset the environment variables
+	unset $OPENAI_API_KEY
+}
+
+# start the FastAPI app, pointed at a mocked aws endpoint
+run-mock() {
+	set -e
+
+	# Check if Docker is running
+	if ! docker info >/dev/null 2>&1; then
+		echo "Docker is not running. Please start Docker Desktop and try again."
+		exit 1
+	fi
+
+	#####################################
+    # --- Mock AWS with Moto server --- #
+    #####################################
+
+	# Start moto.server in the background on localhost:5000
+	MOTO_PORT=5000
+	uv run -- python -m moto.server -p $MOTO_PORT &
+	MOTO_PID=$!
+
+	# Wait for moto server to be ready
+	echo "Waiting for moto server to start..."
+	sleep 2
+
+	# point the AWS CLI and boto3 to the mocked AWS server using mocked credentials
+	# AWS CLI v2 requires service-specific endpoint URLs
+	export AWS_ENDPOINT_URL="http://127.0.0.1:$MOTO_PORT"
+	export AWS_SECRET_ACCESS_KEY="mock"
+	export AWS_ACCESS_KEY_ID="mock"
+	export S3_BUCKET_NAME="some-bucket"
+	export AWS_REGION="us-east-1"
+	export AWS_DEFAULT_REGION="us-east-1"
+	# export AWS_ENDPOINT_URL_S3="http://s3.$AWS_REGION.127.0.0.1:$MOTO_PORT"
+
+	# create a bucket called "some-bucket" using the mocked aws server
+	aws s3 mb "s3://$S3_BUCKET_NAME" --endpoint-url="http://127.0.0.1:$MOTO_PORT" || (trap "kill $MOTO_PID" EXIT && exit 1)
+
+	#######################################
+    # --- Mock OpenAI with mockserver --- #
+    #######################################
+
+	# point the OpenAI API to the mocked OpenAI server using mocked credentials
+	export OPENAI_MOCK_PORT=1080
+	export OPENAI_BASE_URL="http://localhost:$OPENAI_MOCK_PORT"
+	export OPENAI_API_KEY="mocked_key"
+
+    python "$THIS_DIR/tests/mocks/openai_fastapi_mock_app.py" &
+    OPENAI_MOCK_PID=$!
+
+	###########################################################
+    # --- Schedule the mocks to shut down on FastAPI Exit --- #
+    ###########################################################
+
+    # Trap EXIT signal to kill the moto.server and mocked open-ai server process when uvicorn stops
+    trap "kill $MOTO_PID; kill $OPENAI_MOCK_PID" EXIT
+
+    # ----- #
+	# OLD OpenAI Mocking
+
+	# # Start the Docker Compose to mock the OpenAI API
+	# docker compose --file ./mock-openai-docker-compose.yaml up --detach
+
+	# # Trap EXIT signal to kill the moto.server process when uvicorn stops
+	# trap "kill $MOTO_PID; docker compose --file ./mock-openai-docker-compose.yaml down" EXIT
+
+	# ----- #
+
+	# Export Log Level
+	export LOGURU_LEVEL="DEBUG"
+
+	# Disable AWS X-Ray
+	export AWS_XRAY_SDK_ENABLED="false"
+
+	# Export AWS EMF Environment Variables
+	export AWS_EMF_DISABLE_METRIC_EXTRACTION="true"	# Disable EMF
+	export AWS_EMF_ENVIRONMENT=local # causes metrics to go to stdout
+    export AWS_EMF_ENABLE_DEBUG_LOGGING="true"
+    export AWS_EMF_NAMESPACE=local-fastapi-service
+
+	# Start FastAPI app with uvicorn in the foreground
+	uvicorn src.files_api.main:create_app --factory --host 0.0.0.0 --port 8000 --reload
+
+	# Wait for the moto.server process to finish (this is optional if you want to keep it running)
+	wait $MOTO_PID
+	wait $OPENAI_MOCK_PID
+}
+
+
+function install-generated-sdk {
+	# install the generated SDK in newly created venv
+	python -m pip install --upgrade pip
+	python -m pip install --editable "$THIS_DIR/files-api-sdk/" \
+		--config-settings editable_mode=strict
+}
+
+
+generate-client-library() {
+	# Check if Docker is running
+	if ! docker info >/dev/null 2>&1; then
+		echo "Docker is not running. Please start Docker Desktop and try again."
+		exit 1
+	fi
+
+	# Check if openapi.json file exists
+	if [ ! -f "$THIS_DIR/openapi.json" ]; then
+		echo "openapi.json file not found in the current directory."
+		echo "Generating openapi.json file..."
+		uv run scripts/generate-openapi.py generate --output-spec=openapi.json
+	fi
+
+	# Get the current user ID and group ID to run the docker command with so that
+	# the generated SDK folder doesn't have root permissions, instead user level permission
+	local USER_ID=$(id -u)
+	local GROUP_ID=$(id -g)
+
+	docker run --rm \
+		--user $USER_ID:$GROUP_ID \
+		-v $PWD:/local openapitools/openapi-generator-cli generate \
+		--generator-name python-pydantic-v1 \
+		--input-spec /local/openapi.json \
+		--output /local/files-api-sdk \
+		--package-name files_api_sdk
+}
+
+
+##########################
+# --- Test Tasks  --- # #
+##########################
+
+# execute tests that are not marked as `slow`
+test:quick() {
+	run-tests -m "not slow" ${@:-"$THIS_DIR/tests/"}
+}
+
+# execute tests against the installed package; assumes the wheel is already installed
+test:ci() {
+	INSTALLED_PKG_DIR="$(uv run -- python -c 'import files_api; print(files_api.__path__[0])')"
+	# in CI, we must calculate the coverage for the installed package, not the src/ folder
+	COVERAGE_DIR="$INSTALLED_PKG_DIR" run-tests
+}
+
+# (example) ./run.sh test tests/test_states_info.py::test__slow_add
+run-tests() {
+	PYTEST_EXIT_STATUS=0
+
+	# Disable AWS X-Ray and AWS EMF
+	export AWS_XRAY_SDK_ENABLED="false"
+	export AWS_EMF_DISABLE_METRIC_EXTRACTION="true"	# Disable EMF
+
+	# clean the test-reports dir
+	rm -rf "$THIS_DIR/test-reports" || mkdir "$THIS_DIR/test-reports"
+
+	# execute the tests, calculate coverage, and generate coverage reports in the test-reports dir
+	# uv run pytest ${@:-"$THIS_DIR/tests/"} \
+	# 	--cov "${COVERAGE_DIR:-$THIS_DIR/src}" \
+	# 	--cov-report html \
+	# 	--cov-report term \
+	# 	--cov-report xml \
+	# 	--junit-xml "$THIS_DIR/test-reports/report.xml" \
+	# 	--cov-fail-under "$MINIMUM_TEST_COVERAGE_PERCENT" || ((PYTEST_EXIT_STATUS+=$?))
+
+	uv run pytest ${@:-"$THIS_DIR/tests/"} || ((PYTEST_EXIT_STATUS+=$?))
+
+	# # move coverage reports to the test-reports dir
+	# mv coverage.xml "$THIS_DIR/test-reports/" || true
+	# mv htmlcov "$THIS_DIR/test-reports/" || true
+	# mv .coverage "$THIS_DIR/test-reports/" || true
+
+	return $PYTEST_EXIT_STATUS
+}
+
+# serve the html test coverage report on localhost:8000
+serve-coverage-report() {
+	uv run -- python -m http.server --directory "$THIS_DIR/test-reports/htmlcov/" 8001
+}
+
+############################
+# --- Linting Tasks  --- # #
+############################
+
+# run linting, formatting, and other static code quality tools
+lint() {
+	uvx --from pre-commit pre-commit run --all-files
+}
+
+# same as `lint` but with any special considerations for CI
+lint:ci() {
+	# We skip no-commit-to-branch since that blocks commits to `main`.
+	# All merged PRs are commits to `main` so this must be disabled.
+	SKIP=no-commit-to-branch uvx --from pre-commit pre-commit run --all-files
+}
+
+
+# remove all files generated by tests, builds, or operating this codebase
+clean() {
+	rm -rf dist build coverage.xml test-reports
+	find . \
+	  -type d \
+	  \( \
+		-name "*cache*" \
+		-o -name "*.dist-info" \
+		-o -name "*.egg-info" \
+		-o -name "*htmlcov" \
+        -o -name "cdk.out" \
+	  \) \
+	  -not -path "*env*/*" \
+	  -exec rm -r {} + || true
+
+	find . \
+	  -type f \
+	  -name "*.pyc" \
+	  -not -path "*env/*" \
+	  -exec rm {} +
+
+	# Clean AWS account ID cache
+	rm -f /tmp/.aws_account_id_cache_*
+}
+
+
+# print all functions in this file
+help() {
+    echo "$0 <task> <args>"
+    echo "Tasks:"
+    compgen -A function | cat -n
+}
+
+
+TIMEFORMAT="Task completed in %3lR"
+time ${@:-help}

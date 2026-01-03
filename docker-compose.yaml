@@ -1,0 +1,111 @@
+# ship the fastapi metrics, traces, and logs to AWS
+
+services:
+
+  fastapi:
+    # logs to stdout (including metrics in EMF json format); pushes xray traces to the xray-daemon
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      # app config
+      CREATE_BUCKET_ON_STARTUP: "true"  # in Dockerfile
+      S3_BUCKET_NAME: "mock-bucket"
+      LOGURU_LEVEL: INFO
+      # openai mock (comment these out if you want to use real openai)
+      OPENAI_BASE_URL: "http://openai-mock:1080"
+      OPENAI_API_KEY: mock-key
+      # aws mock (comment these if you want to use real aws)
+      AWS_ENDPOINT_URL: "http://aws-mock:5000"
+      AWS_ACCESS_KEY_ID: mock-key-id
+      AWS_SECRET_ACCESS_KEY: mock-key
+      AWS_REGION: ap-south-1
+      # traces - xray sdk (https://github.com/aws/aws-xray-sdk-python)
+      # https://docs.aws.amazon.com/xray/latest/devguide/xray-sdk-python-configuration.html#xray-sdk-python-configuration-envvars
+      AWS_XRAY_TRACING_NAME: "Files API"
+      AWS_XRAY_DAEMON_ADDRESS: xray-daemon:2000
+      AWS_XRAY_DAEMON_CONTEXT_MISSING: RUNTIME_ERROR # raise an exception if xray context is missing
+      AWS_XRAY_SDK_ENABLED: "true" # if false, can disable sending traces to xray daemon
+      # metrics
+      # https://github.com/awslabs/aws-embedded-metrics-python
+      AWS_EMF_ENVIRONMENT: local # causes metrics to go to stdout
+      AWS_EMF_NAMESPACE: local-files-api
+      # prevents logging metrics to cloudwatch by omitting EMF metadata from logs.
+      AWS_EMF_DISABLE_METRIC_EXTRACTION: false
+    depends_on:
+      - aws-mock
+      - openai-mock
+      - xray-daemon
+    # uncomment this section if you want to use real aws credentials; or mount aws creds into container
+    # env_file:
+    #   - .env
+    #   - openai.env  # create this file if you want to use real OpenAI
+    volumes:
+      - ./:/app
+
+  aws-mock:
+    # mock aws' endpoints on port 5000 (with moto)
+    image: motoserver/moto:latest
+    command: -p 5000
+    logging:
+      driver: none
+    ports:
+      - "5001:5000"
+
+  openai-mock:
+    image: openai-mock
+    build:
+      dockerfile: Dockerfile
+    entrypoint: python ./tests/mocks/openai_fastapi_mock_app.py
+    environment:
+      OPENAI_MOCK_PORT: "1080"
+    ports:
+      - "1080:1080"
+    volumes:
+      - ./:/app
+
+  logspout:
+    # Logs: uses the docker daemon to collect logs from fastapi's stdout and push to cloudwatch
+    image: mdsol/logspout:latest
+    command: "cloudwatch://${AWS_REGION:-ap-south-1}?NOEC2" # default AWS_REGION to ap-south-1 if env var not set
+    # command: "cloudwatch://${AWS_REGION}?DEBUG=1&NOEC2"  # use this line for verbose debug logs
+    environment:
+      EXCLUDE_LABELS: "logspout=disable"
+      LOGSPOUT_GROUP: /aws/lambda/local-fastapi
+      LOGSPOUT_STREAM: "{{.Name}}"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock
+    env_file:
+      # aws credentials for pushing logs to cloudwatch
+      - .env
+    depends_on:
+      - fastapi
+
+  xray-daemon:
+    # Traces: listens for the fastapi service to send traces and pushes them to cloudwatch/xray
+    image: amazon/aws-xray-daemon:latest
+    command: |
+      --local-mode
+      --bind 0.0.0.0:2000
+      --bind-tcp 0.0.0.0:2000
+      --region ${AWS_REGION:-ap-south-1}
+      # --log-level dev
+    ports:
+      - "2000:2000/udp"
+    env_file:
+      - .env
+
+  # old-openai-mock:
+  #   image: mockserver/mockserver:latest
+  #   ports:
+  #       - "1080:1080"
+  #   logging:
+  #     driver: none
+  #   environment:
+  #     MOCKSERVER_INITIALIZATION_JSON_PATH: /data/preset-openai-responses.json
+  #     # ↓ hot reload when the spec.json changes 😍
+  #     MOCKSERVER_WATCH_INITIALIZATION_JSON: "true"
+  #   volumes:
+  #     - ./preset-openai-responses.json:/data/preset-openai-responses.json

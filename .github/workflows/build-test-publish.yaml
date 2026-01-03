@@ -1,0 +1,133 @@
+name: Build, Test, and Deploy
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  push:
+    branches:
+      - main
+    paths:
+      - src/files_api/**
+      - .github/workflows/build-test-publish.yaml
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy if tests successful
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+
+jobs:
+  check-version:
+    name: Check Version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Check version
+        # https://github.com/gnprice/toml-cli
+        run: |-
+          VERSION=$(uvx --from=toml-cli toml get --toml-path pyproject.toml project.version)
+          git tag "v$VERSION"
+
+  lint-format-and-static-code-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          # we need to fetch all branches/history so we can grab openapi.json out of the main branch
+          fetch-depth: 0
+      # we need docker to run the oasdiff CLI pre-commit hook
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3.3.0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      # run the pre-commit hooks including the openapi hooks to check any breaking changes
+      # in the openapi schema/contract. If contract has breaking changes, the build will fail.
+      - name: Run oasdiff, Lint, Format, and other static code quality checks
+        run: SKIP=no-commit-to-branch uvx --from pre-commit pre-commit run --all-files
+
+  build-wheel-and-sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Build Wheel Dist
+        run: uv build --wheel
+
+      - name: Upload Wheel Dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-dist
+          path: ./dist/*
+
+  execute-tests:
+    needs:
+      - build-wheel-and-sdist
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Download Wheel Dist
+        uses: actions/download-artifact@v4
+        with:
+          name: wheel-dist
+          path: ./dist/
+
+      - name: Install Wheel & Run Tests against Wheel
+        run: |-
+          uv venv
+          source .venv/bin/activate
+          uv pip install ./dist/*whl
+          uv pip install --group test
+          ./run run-tests
+
+  publish:
+    needs:
+      - execute-tests
+      - build-wheel-and-sdist
+      - lint-format-and-static-code-checks
+      - check-version
+    runs-on: ubuntu-latest
+    # if - this is a merge to main or push directly to the main branch
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Download Wheel
+        uses: actions/download-artifact@v4
+        with:
+          name: wheel-dist
+      # - name: Deploy
+      #   if: ${{ github.event.inputs.deploy == 'true' }}
+      #   run: |
+      #     # ...
+      - name: Push Version Tag
+        # https://github.com/gnprice/toml-cli
+        run: |
+          VERSION=$(uvx --from=toml-cli toml get --toml-path pyproject.toml project.version)
+          git tag "v$VERSION"
+          git push origin --tags
