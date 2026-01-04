@@ -6,9 +6,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - src/files_api/**
-      - .github/workflows/build-test-publish.yaml
   workflow_dispatch:
     inputs:
       deploy:
@@ -19,7 +16,6 @@ on:
 
 permissions:
   contents: write
-
 
 jobs:
   check-version:
