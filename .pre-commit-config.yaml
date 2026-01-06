@@ -2,7 +2,7 @@
 # See https://pre-commit.com/hooks.html for more hooks
 
 # Don't run pre-commit on notebooks folder
-exclude: ^files-api/notebooks
+exclude: ^notebooks
 
 repos:
   - repo: local
@@ -13,18 +13,17 @@ repos:
         name: Generate and Assert that OpenAPI Schema is up to date
         entry: |
           bash -c '
+
           THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-          pushd "$THIS_DIR/files-api"
-          uv run ./scripts/generate-openapi.py generate-and-diff
-            --existing-spec ./openapi.json
-            --output-spec ./openapi.json
+          uv run $THIS_DIR/scripts/generate-openapi.py generate-and-diff \
+            --existing-spec ./openapi.json  \
+            --output-spec ./openapi.json  \
             --fail-on-diff
-          popd
           '
         language: system
         # run this hook if openapi.json or any of the src/*.py files change (since those files generate openapi.json)
-        files: ^files-api/openapi\.json$|^files-api/src/.*\.py$
+        files: ^openapi\.json$|^src/.*\.py$
         pass_filenames: false
         always_run: false
 
@@ -38,23 +37,21 @@ repos:
 
           THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-          pushd "$THIS_DIR/files-api"
-
           # generate the OpenAPI spec from the latest fastapi app code;
-          uv run ./scripts/generate-openapi.py generate --output-spec openapi.json;
+          uv run $THIS_DIR/scripts/generate-openapi.py generate --output-spec openapi.json;
 
           # Determine which ref to use: remote if available, otherwise local
-          if git show refs/heads/main:files-api/openapi.json > /dev/null 2>&1; then
-            OPENAPI_REF="refs/heads/main:files-api/openapi.json"
+          if git show refs/heads/main:openapi.json > /dev/null 2>&1; then
+            OPENAPI_REF="refs/heads/main:openapi.json"
           else
-            OPENAPI_REF="origin/main:files-api/openapi.json"
+            OPENAPI_REF="origin/main:openapi.json"
           fi
 
           # Load the OpenAPI schema from the determined ref
           git show $OPENAPI_REF > ./openapi-main.json
 
           # set the openapi-main.json to be deleted when this hook finishes;
-          trap "rm $THIS_DIR/files-api/openapi-main.json" EXIT;
+          trap "rm $THIS_DIR/openapi-main.json" EXIT;
 
           # compare the recently generated OpenAPI schema to the one in main and fail if ;
           # the recently generated one would introduce breaking changes;
@@ -64,12 +61,10 @@ repos:
               /data/openapi-main.json \
               /data/openapi.json \
               --fail-on ERR
-
-          popd
           '
         language: system
         # run this hook if openapi.json or any of the src/*.py files change (since those files generate openapi.json)
-        files: ^files-api/openapi\.json$|^files-api/src/.*\.py$
+        files: ^openapi\.json$|^src/.*\.py$
         pass_filenames: false
         always_run: false
         verbose: false
