@@ -1,6 +1,6 @@
 # Storing Secrets in AWS Secrets Manager & AWS SSM Parameter Store
 
-This is not an articles delving into the details of AWS Secrets Manager or SSM Parameter Store, but a quick overview of how to use them to store secrets like API keys like I did in [this project](https://github.com/avr2002/files-api).
+This is not an article delving into the details of AWS Secrets Manager or SSM Parameter Store, but a quick overview of how to use them to store secrets like API keys like I did in [this project](https://github.com/avr2002/files-api).
 
 ## AWS Secrets Manager
 
@@ -505,6 +505,67 @@ class MyCDKStack(Stack):
 Notes:
 - Grant your Lambda IAM permissions: ssm:GetParameter (and optionally ssm:GetParametersByPath), plus kms:Decrypt if using a self-managed KMS key.
 - Standard vs Advanced tier affects value size limits and throughput/pricing; use caching to reduce API calls.
+
+
+
+## Naming Conventions
+
+There isn't any strict enforced naming convention. However, often people follow a heirarchical naming convention to organize secrets and parameters that reflects the application structure, environment, and purpose.
+
+Use path-style names that describe:
+```md
+/<environment>/<app>/<scope>/<name>
+
+# For example:
+
+/prod/payments/secrets/stripe_api_key
+/prod/payments/secrets/db_password
+
+/dev/payments/config/api_base_url
+/dev/payments/config/request_timeout
+```
+
+This enables simple IAM rules like:
+
+```json
+{
+  "Effect": "Allow",
+  "Action": "ssm:GetParameter",
+  "Resource": "arn:aws:ssm:region:account-id:parameter/prod/payments/*"
+}
+```
+
+SSM Parameter Store has a concept of "simple names" vs "path-like names".
+
+```python
+from aws_cdk import aws_ssm as ssm, aws_lambda as _lambda
+
+# Simple name (no "/"): set simple_name=True
+# A parameter name without any "/" is considered a simple name.
+simple_parameter = ssm.StringParameter(
+    self,
+    "StringParameterSimple",
+    parameter_name="parameter",
+    string_value="SOME_VALUE",
+    simple_name=True,
+)
+
+# Assume you already have a Lambda function reference
+func: _lambda.IFunction = my_lambda  # replace with your function
+
+# Path-like name (contains "/"): set simple_name=False
+non_simple_parameter = ssm.StringParameter(
+    self,
+    "StringParameterNonSimple",
+    parameter_name=f"/{func.function_name}/my/app/param",
+    string_value="SOME_VALUE",
+    simple_name=False,
+)
+```
+
+^^^ref:
+- [Using a hierarchical naming convention for secrets](https://docs.aws.amazon.com/prescriptive-guidance/latest/secure-sensitive-data-secrets-manager-terraform/naming-convention.html)
+- [Working with parameter hierarchies in Parameter Store](https://docs.aws.amazon.com/systems-manager/latest/userguide/sysman-paramstore-hierarchies.html)
 
 
 
