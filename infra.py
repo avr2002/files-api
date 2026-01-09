@@ -7,7 +7,7 @@ from aws_cdk import (
     aws_apigateway as apigw,
     aws_lambda as _lambda,
     aws_s3 as s3,
-    aws_secretsmanager as secretsmanager,
+    aws_ssm as ssm,
 )
 from constructs import Construct
 
@@ -32,21 +32,18 @@ class FilesApiCdkStack(Stack):
         )
 
         # Create a Secret to store OpenAI API Key
-        openai_api_secret_key = secretsmanager.Secret(
-            self,
-            id="OpenAIApiSecretKey",
-            description="OpenAI API Key to generate text, images, and audio using OpenAI's API",
-            secret_name="files-api/openai-api-key",
-            # secret_string_value=...,
-            # ^^^AWS discourages to pass the secret value directly in the CDK code as the value will be included in the
-            # output of the cdk as part of synthesis, and will appear in the CloudFormation template in the console
-            removal_policy=cdk.RemovalPolicy.DESTROY,
-        )
-        # ^^^The recommended way is to leave this field empty and manually add the secret value in the Secrets Manager console after deploying the stack.
-        # AWS Secrets Manager will automatically create a placeholder/empty secret for you
-        # The secret exists in AWS, but initially has no value (or a generated random value depending on the context).
 
-        # This way, the secret value never appears in code, outputs, or CloudFormation templates.
+        # CloudFormation does not support creating SecureString parameters.
+        # So, we manually create the parameter of type SecureString in the console, then reference it here in CDK.
+        # Reference an existing SecureString parameter from SSM Parameter Store
+        ssm_openai_api_secret_key = ssm.StringParameter.from_secure_string_parameter_attributes(
+            self,
+            id="ExistingOpenAIApiSecretKey",
+            parameter_name="/files-api/openai-api-key",
+            version=1,
+        )
+        # ^^^This parameter should contain the same OpenAI API Key as in the Secrets Manager secret.
+        # ^^^You need to manually create this parameter in the console and delete it when the stack is destroyed.
 
         # Create a Lambda function & Lambda Layer
         files_api_lambda_layer = _lambda.LayerVersion(
@@ -102,7 +99,9 @@ class FilesApiCdkStack(Stack):
                 path=(THIS_DIR / "src").as_posix(),
                 exclude=["tests/*", ".venv", "*.pyc", "__pycache__", ".git"],
             ),
+            # Add Lambda Layers for dependencies and AWS Secrets Manager extension
             layers=[files_api_lambda_layer, secrets_manager_lambda_extension_layer],
+            # Enable X-Ray Tracing for the Lambda function
             tracing=_lambda.Tracing.ACTIVE,
             environment={
                 "S3_BUCKET_NAME": files_api_bucket.bucket_name,
@@ -110,8 +109,10 @@ class FilesApiCdkStack(Stack):
                 "AWS_EMF_NAMESPACE": "files-api",
                 "AWS_XRAY_TRACING_NAME": "Files API",
                 "AWS_XRAY_DAEMON_CONTEXT_MISSING": "RUNTIME_ERROR",
+                # OpenAI API Key configuration
                 # "OPENAI_API_KEY": os.environ["OPENAI_API_KEY"],
-                "OPENAI_API_SECRET_NAME": openai_api_secret_key.secret_name,
+                # "OPENAI_API_SECRET_NAME": openai_api_secret_key.secret_name,
+                "OPENAI_API_SSM_PARAMETER_NAME": ssm_openai_api_secret_key.parameter_name,
                 # AWS Parameters and Secrets Lambda Extension configuration
                 # You can find all the supported environment variables here:
                 # https://docs.aws.amazon.com/lambda/latest/dg/with-secrets-manager.html
@@ -127,8 +128,8 @@ class FilesApiCdkStack(Stack):
         # Grant the Lambda function permissions to read/write to the S3 bucket
         files_api_bucket.grant_read_write(files_api_lambda)
 
-        # Grant the Lambda function permissions to read the OpenAI API Key secret
-        openai_api_secret_key.grant_read(files_api_lambda)
+        # Grant the Lambda function permissions to read the OpenAI API Key secret from SSM Parameter Store
+        ssm_openai_api_secret_key.grant_read(files_api_lambda)
 
         # Setup API Gateway with resources and methods
 
