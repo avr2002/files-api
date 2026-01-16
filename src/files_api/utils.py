@@ -8,6 +8,8 @@ import urllib.request
 
 from loguru import logger
 
+# TODO: Could replace urllib with httpx
+
 
 # Use the AWS-Parameters-and-Secrets-Lambda-Extension to retrieve secrets from Secrets Manager
 # ref: https://docs.aws.amazon.com/systems-manager/latest/userguide/ps-integration-lambda-extensions.html
