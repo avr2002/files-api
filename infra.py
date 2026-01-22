@@ -1,3 +1,4 @@
+import hashlib
 import os
 from pathlib import Path
 
@@ -14,6 +15,27 @@ from constructs import Construct
 THIS_DIR = Path(__file__).parent
 
 S3_BUCKET_NAME = os.environ["S3_BUCKET_NAME"]
+
+_assets_to_exclude: list[str] = [
+    "scripts/*",
+    "tests/*",
+    "docs/*",
+    ".vscode",
+    "*.env",
+    ".venv",
+    "*.pyc",
+    "__pycache__",
+    "*cache*",
+    ".DS_Store",
+    ".git",
+    ".github",
+]
+
+# Create a Lambda function & Lambda Layer
+# ref: https://docs.aws.amazon.com/lambda/latest/dg/chapter-layers.html#configuration-layers-path
+# ref: https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda.LayerVersion.html
+# ref: https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_s3_assets.AssetOptions.html
+# ref: https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.BundlingOptions.html
 
 
 class FilesApiCdkStack(Stack):
@@ -55,9 +77,17 @@ class FilesApiCdkStack(Stack):
             compatible_runtimes=[_lambda.Runtime.PYTHON_3_12],
             code=_lambda.Code.from_asset(
                 path=THIS_DIR.as_posix(),
-                bundling={
-                    "image": _lambda.Runtime.PYTHON_3_12.bundling_image,
-                    "command": [
+                display_name="files-api-lambda-layer",
+                deploy_time=True,  # delete S3 asset after deployment
+                # Only re-build and re-deploy the layer if the dependency files change
+                # ref: https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.AssetOptions.html
+                asset_hash_type=cdk.AssetHashType.CUSTOM,
+                asset_hash=hashlib.sha256(
+                    (THIS_DIR / "pyproject.toml").read_bytes() + (THIS_DIR / "uv.lock").read_bytes()
+                ).hexdigest(),  # Custom hash based on dependency files
+                bundling=cdk.BundlingOptions(
+                    image=_lambda.Runtime.PYTHON_3_12.bundling_image,
+                    command=[
                         "bash",
                         "-c",
                         # 0. Upgrade pip to the latest version
@@ -65,11 +95,16 @@ class FilesApiCdkStack(Stack):
                         # 1. Install uv
                         "pip install uv && "
                         # 2. Use uv to install the 'aws-lambda' group into /asset-output/python
-                        "uv pip install --editable . --group aws-lambda --target /asset-output/python",
+                        "uv pip install --no-cache --link-mode=copy --requirements pyproject.toml --group aws-lambda --target /asset-output/python",
                     ],
-                    "user": "root",  # `user` override to be able to install uv and upgrade pip
-                },
-                exclude=["tests/*", ".venv", "*.pyc", "__pycache__", ".git"],
+                    user="root",  # `user` override to be able to install uv and upgrade pip
+                ),
+                # bundling={
+                #     "image": _lambda.Runtime.PYTHON_3_12.bundling_image,
+                #     "command": [...],
+                #     "user": "root",  # `user` override to be able to install uv and upgrade pip
+                # },
+                exclude=_assets_to_exclude,
             ),
             removal_policy=cdk.RemovalPolicy.DESTROY,
         )
@@ -97,7 +132,7 @@ class FilesApiCdkStack(Stack):
             timeout=cdk.Duration.seconds(60),
             code=_lambda.Code.from_asset(
                 path=(THIS_DIR / "src").as_posix(),
-                exclude=["tests/*", ".venv", "*.pyc", "__pycache__", ".git"],
+                exclude=_assets_to_exclude,
             ),
             # Add Lambda Layers for dependencies and AWS Secrets Manager extension
             layers=[files_api_lambda_layer, secrets_manager_lambda_extension_layer],
