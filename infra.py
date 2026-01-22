@@ -1,3 +1,4 @@
+import hashlib
 import os
 from pathlib import Path
 
@@ -30,6 +31,12 @@ _assets_to_exclude: list[str] = [
     ".github",
 ]
 
+# Create a Lambda function & Lambda Layer
+# ref: https://docs.aws.amazon.com/lambda/latest/dg/chapter-layers.html#configuration-layers-path
+# ref: https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda.LayerVersion.html
+# ref: https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_s3_assets.AssetOptions.html
+# ref: https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.BundlingOptions.html
+
 
 class FilesApiCdkStack(Stack):
     """Files API CDK Stack"""
@@ -61,10 +68,6 @@ class FilesApiCdkStack(Stack):
         # ^^^You need to manually create this parameter in the console and delete it when the stack is destroyed.
 
         # Create a Lambda function & Lambda Layer
-        # ref: https://docs.aws.amazon.com/lambda/latest/dg/chapter-layers.html#configuration-layers-path
-        # ref: https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda.LayerVersion.html
-        # ref: https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_s3_assets.AssetOptions.html
-        # ref: https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.BundlingOptions.html
         files_api_lambda_layer = _lambda.LayerVersion(
             self,
             id="FilesApiLambdaLayer",
@@ -76,6 +79,12 @@ class FilesApiCdkStack(Stack):
                 path=THIS_DIR.as_posix(),
                 display_name="files-api-lambda-layer",
                 deploy_time=True,  # delete S3 asset after deployment
+                # Only re-build and re-deploy the layer if the dependency files change
+                # ref: https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.AssetOptions.html
+                asset_hash_type=cdk.AssetHashType.CUSTOM,
+                asset_hash=hashlib.sha256(
+                    (THIS_DIR / "pyproject.toml").read_bytes() + (THIS_DIR / "uv.lock").read_bytes()
+                ).hexdigest(),  # Custom hash based on dependency files
                 bundling=cdk.BundlingOptions(
                     image=_lambda.Runtime.PYTHON_3_12.bundling_image,
                     command=[
