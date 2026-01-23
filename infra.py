@@ -1,4 +1,5 @@
 import hashlib
+import json
 import os
 from pathlib import Path
 
@@ -7,6 +8,7 @@ from aws_cdk import (
     Stack,
     aws_apigateway as apigw,
     aws_lambda as _lambda,
+    aws_logs as logs,
     aws_s3 as s3,
     aws_ssm as ssm,
 )
@@ -168,9 +170,18 @@ class FilesApiCdkStack(Stack):
 
         # Setup API Gateway with resources and methods
 
-        # The LambdaRestApi construct by default creates a `test-invoke-stage` stage for the API
+        # Log group for API Gateway access logs
+        api_gw_access_log_group_prod = logs.LogGroup(
+            self,
+            id="FilesApiGwAccessLogGroup",
+            log_group_name="/aws/apigateway/access-logs/files-api/prod",
+            retention=logs.RetentionDays.ONE_MONTH,
+            removal_policy=cdk.RemovalPolicy.DESTROY,
+        )
 
-        # I disabled the proxy integration(proxy=False) because on the root path it defined "ANY" method by default which  we do not want.
+        # The LambdaRestApi L2 construct by default creates a `test-invoke-stage` stage for the API
+
+        # I disabled the proxy integration(proxy=False) because on the root path it defined "ANY" method by default which we do not want.
         # For the root path we only want to allow "GET" method to access the OpenAPI docs page.
         files_api_gw = apigw.LambdaRestApi(
             self,
@@ -184,7 +195,16 @@ class FilesApiCdkStack(Stack):
             deploy_options=apigw.StageOptions(
                 stage_name="prod",
                 tracing_enabled=True,
+                metrics_enabled=True,
+                logging_level=apigw.MethodLoggingLevel.INFO,
+                access_log_destination=apigw.LogGroupLogDestination(log_group=api_gw_access_log_group_prod),
+                # access_log_format=apigw.AccessLogFormat.clf(),  # Common Log Format for access logs
+                # access_log_format=apigw.AccessLogFormat.json_with_standard_fields(...)    # Pre-defined JSON format with standard fields
+                access_log_format=apigw_custom_access_log_format(),  # Custom JSON format for access logs
             ),
+            # Setting cloudWatchRole to true ensures CDK creates the necessary IAM role for logging
+            cloud_watch_role=True,
+            cloud_watch_role_removal_policy=cdk.RemovalPolicy.DESTROY,
             # endpoint_configuration=apigw.EndpointConfiguration(
             #     types=[apigw.EndpointType.REGIONAL],  # Use REGIONAL endpoint type for cost-effectiveness
             # ),
@@ -220,18 +240,57 @@ class FilesApiCdkStack(Stack):
         #     self,
         #     id="FilesApiGatewayUrl",
         #     value=files_api_gw.url,
-        #     description="Files-API API Gateway URL",
+        #     description="Files-API API Gateway Invoke URL",
         # )
 
         # Print an output saying manually create the SSM SecureString parameter
         cdk.CfnOutput(
             self,
             id="ManualSSMParameterCreationNotice",
-            value="Please remember to manually create the SSM Parameter Store SecureString parameter"
-            " '/files-api/openai-api-key' with your OpenAI API Key before deploying the stack."
-            f" You can create it here: https://{self.region}.console.aws.amazon.com/systems-manager/parameters/",
+            value="Please remember to manually create a SecureString parameter in AWS SSM Parameter Store with name"
+            " '/files-api/openai-api-key' with your OpenAI API Key after the first deployment of this stack.\n"
+            f"You can create it here: https://{self.region}.console.aws.amazon.com/systems-manager/parameters/",
             description="Manual SSM Parameter Creation Notice",
         )
+
+
+def apigw_custom_access_log_format() -> apigw.AccessLogFormat:
+    """
+    Custom API Gateway Access Log Format based on Alex DeBrie's blog post.
+
+    Ref: https://www.alexdebrie.com/posts/api-gateway-access-logs/#access-logging-fields
+    """
+    # ref: Refer to Alex DeBrie's blog post for custom access log format:
+    return apigw.AccessLogFormat.custom(
+        json.dumps(
+            {  # Request Information
+                "requestTime": apigw.AccessLogField.context_request_time,
+                "requestId": apigw.AccessLogField.context_request_id,
+                # There is slight difference in requestId & extendedRequestId: Clients can override the requestID
+                # but not the extendedRequestId, which may be helpful for troubleshooting & debugging purposes
+                "extendedRequestId": apigw.AccessLogField.context_extended_request_id,
+                "httpMethod": apigw.AccessLogField.context_http_method,
+                "path": apigw.AccessLogField.context_path,
+                "resourcePath": apigw.AccessLogField.context_resource_path,
+                "status": apigw.AccessLogField.context_status,
+                "responseLatency": apigw.AccessLogField.context_response_latency,  # in milliseconds
+                "xrayTraceId": apigw.AccessLogField.context_xray_trace_id,
+                # Integration Information
+                # AWS Endpoint Request ID: The requestID generated by Lambda function invocation
+                # "integrationRequestId": apigw.AccessLogField.context_integration_request_id,
+                "integrationRequestId": "$context.integration.requestId",
+                # Integration Response Status Code: Status code returned by the AWS Lambda function
+                "functionResponseStatus": apigw.AccessLogField.context_integration_status,
+                # Latency of the integration, like Lambda function, in milliseconds
+                "integrationLatency": apigw.AccessLogField.context_integration_latency,
+                # Status code returned by the AWS Lambda Service and not the backend Lambda function code
+                "integrationServiceStatus": apigw.AccessLogField.context_integration_status,
+                # User Identity Information
+                "ip": apigw.AccessLogField.context_identity_source_ip,
+                "userAgent": apigw.AccessLogField.context_identity_user_agent,
+            }
+        ),
+    )
 
 
 ###############
