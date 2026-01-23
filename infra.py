@@ -212,7 +212,11 @@ class FilesApiCdkStack(Stack):
                 stage_name="prod",
                 tracing_enabled=True,
                 metrics_enabled=True,
-                logging_level=apigw.MethodLoggingLevel.INFO,
+                # logging_level=apigw.MethodLoggingLevel.INFO,
+                # ^^^API Gateway Execution Logs - it is recommended to turn it off in production
+                # Execution logs capture detailed information about API request processing lifecycle. It should be
+                # enabled only for debugging purposes as it can quite verbose and incur additional cloudwatch costs
+                # and may expose sensitive information.
                 access_log_destination=apigw.LogGroupLogDestination(log_group=api_gw_access_log_group_prod),
                 # access_log_format=apigw.AccessLogFormat.clf(),  # Common Log Format for access logs
                 # access_log_format=apigw.AccessLogFormat.json_with_standard_fields(...)    # Pre-defined JSON format with standard fields
