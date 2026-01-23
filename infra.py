@@ -122,6 +122,17 @@ class FilesApiCdkStack(Stack):
         # ^^^I found the layer ARN here from the AWS docs:
         # https://docs.aws.amazon.com/systems-manager/latest/userguide/ps-integration-lambda-extensions.html#ps-integration-lambda-extensions-add
 
+        # Log group for Lambda function
+        # Lambda by default creates a log group of format /aws/lambda/<function-name>
+        # But here we are explicitly creating it to set retention and removal policy
+        files_api_lambda_log_group = logs.LogGroup(
+            self,
+            id="FilesApiLambdaLogGroup",
+            log_group_name="/aws/lambda/files-api",
+            retention=logs.RetentionDays.ONE_MONTH,
+            removal_policy=cdk.RemovalPolicy.DESTROY,
+        )
+
         files_api_lambda = _lambda.Function(
             self,
             id="FilesApiLambda",
@@ -138,6 +149,8 @@ class FilesApiCdkStack(Stack):
             ),
             # Add Lambda Layers for dependencies and AWS Secrets Manager extension
             layers=[files_api_lambda_layer, secrets_manager_lambda_extension_layer],
+            # Specify the log group for the Lambda function
+            log_group=files_api_lambda_log_group,
             # Enable X-Ray Tracing for the Lambda function
             tracing=_lambda.Tracing.ACTIVE,
             environment={
@@ -167,6 +180,9 @@ class FilesApiCdkStack(Stack):
 
         # Grant the Lambda function permissions to read the OpenAI API Key secret from SSM Parameter Store
         ssm_openai_api_secret_key.grant_read(files_api_lambda)
+
+        # Grant the Lambda function permissions to write logs to CloudWatch Logs
+        files_api_lambda_log_group.grant_write(files_api_lambda)
 
         # Setup API Gateway with resources and methods
 
