@@ -212,11 +212,12 @@ class FilesApiCdkStack(Stack):
                 stage_name="prod",
                 tracing_enabled=True,
                 metrics_enabled=True,
-                # logging_level=apigw.MethodLoggingLevel.INFO,
-                # ^^^API Gateway Execution Logs - it is recommended to turn it off in production
+                # API Gateway Execution Logs: it is recommended to turn it off in production
                 # Execution logs capture detailed information about API request processing lifecycle. It should be
-                # enabled only for debugging purposes as it can quite verbose and incur additional cloudwatch costs
-                # and may expose sensitive information.
+                # enabled only for debugging purposes as it can quite verbose and incur additional cloudwatch costs and may expose sensitive information.
+                # AWS auto creates a log group for execution logs with format: API-Gateway-Execution-Logs/{rest-api-id}/{stage-name}
+                logging_level=None,  # apigw.MethodLoggingLevel.INFO,  # Set to INFO or ERROR to enable execution logging
+                # Access Logs: Access logs capture traffic-related information about the requests coming into API Gateway.
                 access_log_destination=apigw.LogGroupLogDestination(log_group=api_gw_access_log_group_prod),
                 # access_log_format=apigw.AccessLogFormat.clf(),  # Common Log Format for access logs
                 # access_log_format=apigw.AccessLogFormat.json_with_standard_fields(...)    # Pre-defined JSON format with standard fields
@@ -278,7 +279,9 @@ def apigw_custom_access_log_format() -> apigw.AccessLogFormat:
     """
     Custom API Gateway Access Log Format based on Alex DeBrie's blog post.
 
-    Ref: https://www.alexdebrie.com/posts/api-gateway-access-logs/#access-logging-fields
+    Ref:
+    - Alex DeBrie's blog post: https://www.alexdebrie.com/posts/api-gateway-access-logs/#access-logging-fields
+    - My article: https://ericriddoch.notion.site/Deep-Dive-Log-Correlation-Setting-up-Access-and-Execution-Logs-in-our-API-19a29335f6d880149ec2e1875e8b8761?pvs=143
     """
     # ref: Refer to Alex DeBrie's blog post for custom access log format:
     return apigw.AccessLogFormat.custom(
