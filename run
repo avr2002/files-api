@@ -43,11 +43,11 @@ cdk-bootstrap () {
 
 
 cdk-synth () {
-	# Check if varibale is set and not empty
+	# Check if variable is set and not empty
 	if [ -n "${GITHUB_ACTIONS:-}" ]; then
 		# running in GitHub Actions
 		cdk synth --app 'uv run --script infra.py' --region $AWS_REGION
-	else:
+	else
 		cdk synth --app 'uv run --script infra.py' --profile $AWS_PROFILE --region $AWS_REGION
 	fi
 }
