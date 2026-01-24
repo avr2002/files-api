@@ -7,13 +7,13 @@ export AWS_REGION=us-west-2
 export AWS_DEFAULT_REGION=${AWS_REGION}
 
 # aws account id/hash used to make a unique, but consistent bucket name
-if [ -z "${GITHUB_ACTIONS:-}" ]; then
-	# not running in GitHub Actions
-	AWS_ACCOUNT_ID=$(aws sts get-caller-identity --profile $AWS_PROFILE --query "Account" --output text)
-else
+if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
 	# running in GitHub Actions
 	# retrieve AWS Account ID from environment variable set by GitHub Actions OIDC token
 	AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text || echo "")
+else
+	# not running in GitHub Actions
+	AWS_ACCOUNT_ID=$(aws sts get-caller-identity --profile $AWS_PROFILE --query "Account" --output text)
 fi
 
 # Only create bucket name if AWS_ACCOUNT_ID is available
@@ -43,10 +43,12 @@ cdk-bootstrap () {
 
 
 cdk-synth () {
-	if [ -z "${GITHUB_ACTIONS:-}" ]; then
-		cdk synth --app 'uv run --script infra.py' --profile $AWS_PROFILE --region $AWS_REGION
-	else:
+	# Check if varibale is set and not empty
+	if [ -n "${GITHUB_ACTIONS:-}" ]; then
+		# running in GitHub Actions
 		cdk synth --app 'uv run --script infra.py' --region $AWS_REGION
+	else:
+		cdk synth --app 'uv run --script infra.py' --profile $AWS_PROFILE --region $AWS_REGION
 	fi
 }
 
@@ -64,10 +66,11 @@ cdk-deploy () {
 		exit 1
 	fi
 
-	if [ -z "${GITHUB_ACTIONS:-}" ]; then
-    	cdk deploy --app 'uv run --script infra.py' '*' --profile $AWS_PROFILE --region $AWS_REGION
-	else
+	if [ -n "${GITHUB_ACTIONS:-}" ]; then
+		# running in GitHub Actions
 		cdk deploy --app 'uv run --script infra.py' '*' --region $AWS_REGION
+	else
+    	cdk deploy --app 'uv run --script infra.py' '*' --profile $AWS_PROFILE --region $AWS_REGION
 	fi
 }
 
