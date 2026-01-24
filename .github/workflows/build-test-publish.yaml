@@ -123,6 +123,9 @@ jobs:
         lint-format-and-static-code-checks,
         check-version,
       ]
+    permissions:
+      id-token: write
+      contents: read
     runs-on: ubuntu-latest
     # IDEAL WAY to do this would be deploy to dev/staging on PR merge, then either
     # Deploy to prod on merge to main or have a manual approval step.
