@@ -45,7 +45,7 @@ This project is a more polished version of the [cloud-engineering-project](https
   - [ ] Try Docker multi-stage builds and configure [watch](https://docs.astral.sh/uv/guides/integration/docker/#configuring-watch-with-docker-compose) with docker compose.
 - [x] Setup CI/CD pipeline to deploy the API to AWS using GitHub Actions.
   - [x] Used OpenID Connect to deploy to AWS in GitHub Actions.
-  - [ ] Try AWS CodePipeline as alternative? [ref: [link1](https://youtu.be/EVDw0sdxaec?si=VcfZj52suQc_pxa5)]
+  - [ ] Try AWS CodePipeline as alternative? [ref: [link1](https://youtu.be/EVDw0sdxaec?si=VcfZj52suQc_pxa5), [link2](https://docs.aws.amazon.com/cdk/v2/guide/cdk-pipeline.html)]
   - video: [The IDEAL & Practical CI / CD Pipeline - Concepts Overview](https://youtu.be/OPwU3UWCxhw?si=mmVkOFEaarkdp4eZ) - Be A Better Dev
 - [ ] API Gateway Improvements:
   - [ ] Implement API versioning strategy (like v1 in the path).
