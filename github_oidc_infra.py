@@ -5,7 +5,22 @@
 #     "constructs>=10.4.4",
 # ]
 # ///
-"""Creating an IAM Role for GitHub OIDC to allow GitHub Actions to assume the role and deploy CDK stack."""
+"""
+Creating an IAM Role for GitHub OIDC to allow GitHub Actions to assume the role and deploy CDK stack.
+
+Usage: ./run cdk-deploy:github_oidc_stack <github-repo:owner/repo> <create-oidc-provider:true|false>
+
+^^^When running for the first time, set --create-oidc-provider to true (false by default) to create the
+OIDC provider for your AWS account. The OIDC provider can be created only once per AWS account.
+
+Information on GitHub OIDC provider:
+
+- official docs by GitHub: https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws
+- aws blog: https://aws.amazon.com/blogs/security/use-iam-roles-to-connect-github-actions-to-actions-in-aws/
+- where to find the GitHub Actions thumbprints for the OIDC provider: https://github.blog/changelog/2023-06-27-github-actions-update-on-oidc-integration-with-aws/
+- video on setting this up: https://www.youtube.com/watch?v=USIVWqXVv_U
+- mlops-club github: https://github.com/mlops-club/aws-oidc-github-actions-demo/blob/main/__main__.py
+"""
 
 import os
 import re
@@ -13,14 +28,6 @@ import re
 import aws_cdk as cdk
 from aws_cdk import Stack, aws_iam as iam
 from constructs import Construct
-
-"""
-Information on GitHub OIDC provider:
-
-- official docs by GitHub: https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services
-- where to find the GitHub Actions thumbprints for the OIDC provider: https://github.blog/changelog/2023-06-27-github-actions-update-on-oidc-integration-with-aws/
-- video on setting this up: https://www.youtube.com/watch?v=USIVWqXVv_U
-"""
 
 
 class GitHubActionsOIDCRoleStack(Stack):
@@ -49,9 +56,6 @@ class GitHubActionsOIDCRoleStack(Stack):
             if not re.match(r"^[^/]+/[^/]+$", github_repo):
                 raise ValueError("GitHub repository must be in the format 'owner/repo'.")
 
-        # Create a OIDC Provider resource if not already existing
-        github_provider: iam.IOpenIdConnectProvider | iam.OidcProviderNative
-
         # Check if we should create a new OIDC provider or use an existing one
         create_oidc_provider_str = self.node.try_get_context("create_oidc_provider")
 
@@ -69,6 +73,7 @@ class GitHubActionsOIDCRoleStack(Stack):
             github_provider = iam.OidcProviderNative(
                 self,
                 id="GitHubOIDCProvider",
+                oidc_provider_name="GitHubActionsOIDCProvider",
                 url="https://token.actions.githubusercontent.com",
                 client_ids=["sts.amazonaws.com"],
                 thumbprints=[
@@ -76,15 +81,19 @@ class GitHubActionsOIDCRoleStack(Stack):
                     "6938fd4d98bab03faadb97b34396831e3780aea1",
                     "1c58a3a8518e8759bf075b76b750d4f2df264fcd",
                 ],
+                # ^^^These thumbprints are now not needed as AWS manages them automatically
+                # ref: https://github.blog/changelog/2023-07-13-github-actions-oidc-integration-with-aws-no-longer-requires-pinning-of-intermediate-tls-certificates/
             )
             oidc_provider_arn = github_provider.oidc_provider_arn
 
-        # Create the IAM Role for GitHub Actions OIDC
+        # Create the IAM Role for OIDC Identity Provider to assume and we will scope it to the specific GitHub repository
         github_oidc_role = iam.Role(
             self,
-            "GitHubActionsOIDCRole",
+            id="GitHubActionsOIDCRole",
+            role_name=f"GitHubActionsOIDCRole-{github_repo.replace('/', '-')}",
+            description="IAM Role for GitHub Actions to assume via OIDC for deploying CDK stack.",
             assumed_by=iam.FederatedPrincipal(
-                # federated="arn:aws:iam::" + self.account + ":oidc-provider/token.actions.githubusercontent.com",
+                # federated=f"arn:aws:iam::{self.account}:oidc-provider/token.actions.githubusercontent.com",
                 federated=oidc_provider_arn,
                 conditions={
                     "StringEquals": {
@@ -96,8 +105,6 @@ class GitHubActionsOIDCRoleStack(Stack):
                 },
                 assume_role_action="sts:AssumeRoleWithWebIdentity",
             ),
-            role_name="GitHubActionsOIDCRole",
-            description="IAM Role for GitHub Actions to assume via OIDC for deploying CDK stack.",
         )
 
         # Attach necessary policies to the role (e.g., AdministratorAccess, PowerUserAccess, or custom policies)
@@ -119,7 +126,8 @@ class GitHubActionsOIDCRoleStack(Stack):
 # CDK App
 app = cdk.App()
 
-cdk.Tags.of(app).add("x-project", "files-api")
+cdk.Tags.of(app).add("project", "github-oidc-integration")
+cdk.Tags.of(app).add("managed-by", "cdk")
 
 
 GitHubActionsOIDCRoleStack(
