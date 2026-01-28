@@ -33,11 +33,11 @@ class MyStack(cdk.Stack):
 **Providing Parameter Values**
 
 - **During deployment:** Use the `-parameters` option with the `cdk deploy` command:
-    
+
     **bash**
-    
+
     `cdk deploy --parameters MyParameter=new-value`
-    
+
 - **In the AWS CloudFormation console:** You will be prompted for values if you deploy manually through the console.
 
 **Context Values**
@@ -73,13 +73,13 @@ if config_value is None:
 **Providing Context Values**
 
 - **Command Line:** Pass runtime values using the `-context` flag:
-    
+
     **bash**
-    
+
     `cdk synth -c stage=prod -c instanceType=m5.large`
-    
+
 - **`cdk.json` file:** Define values in your project's `cdk.json` under the `context` key:
-    
+
     ```json
     {
       "app": "python3 app.py",
@@ -89,7 +89,7 @@ if config_value is None:
       }
     }
     ```
-    
+
 
 For complex, environment-specific configurations, a common pattern in Python is to use the context to determine which configuration file or constants module to load.
 

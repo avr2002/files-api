@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
+set -euox pipefail
 
 # Only set AWS_PROFILE when not running in GitHub Actions
 if [[ -z "${GITHUB_ACTIONS:-}" ]]; then
@@ -72,9 +72,9 @@ cdk-deploy () {
 
 	if [ -n "${GITHUB_ACTIONS:-}" ]; then
 		# running in GitHub Actions
-		cdk deploy --app 'uv run --script infra.py' '*' --region $AWS_REGION
+		cdk deploy --app 'uv run --script infra.py' '*' --region $AWS_REGION "${@:-}"
 	else
-    	cdk deploy --app 'uv run --script infra.py' '*' --profile $AWS_PROFILE --region $AWS_REGION
+    	cdk deploy --app 'uv run --script infra.py' '*' --profile $AWS_PROFILE --region $AWS_REGION	 "${@:-}"
 	fi
 }
 
