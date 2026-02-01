@@ -161,6 +161,80 @@ Install [`uv`](https://docs.astral.sh/uv/getting-started/installation/), [aws-cl
     ./run lint:ci
     ```
 
+## Architecture
+
+The app is deployed on AWS using CDK. Below diagram shows the main components and how they interact.
+
+```mermaid
+flowchart TB
+    subgraph Clients["Clients"]
+        User[User / Client]
+    end
+
+    subgraph AWS["AWS Cloud"]
+        subgraph ApiGateway["API Gateway (REST API)"]
+            APIGW[Files API<br/>Regional · prod stage]
+        end
+
+        subgraph Lambda["Lambda"]
+            FN[files-api<br/>Python 3.12 · ARM64]
+            Layer[Lambda Layer<br/>dependencies]
+            Ext[AWS Parameters & Secrets<br/>Lambda Extension]
+        end
+
+        subgraph Storage["Storage & Secrets"]
+            S3[(S3 Bucket<br/>FilesApiBucket)]
+            SSM[SSM Parameter Store<br/>/files-api/openai-api-key]
+        end
+
+        subgraph Observability["Observability"]
+            CWLogs[CloudWatch Logs<br/>/aws/lambda/files-api]
+            APILogs[API Gateway<br/>Access Logs]
+            XRay[X-Ray Tracing]
+        end
+    end
+
+    User -->|HTTP| APIGW
+    APIGW -->|invoke| FN
+    APIGW --> APILogs
+    APIGW --> XRay
+
+    FN --> Layer
+    FN --> Ext
+    Ext -->|fetch secret| SSM
+    FN -->|read/write objects| S3
+    FN --> CWLogs
+    FN --> XRay
+```
+
+**CI/CD (GitHub Actions with OIDC):**
+
+```mermaid
+flowchart LR
+    subgraph GitHub["GitHub"]
+        GA[GitHub Actions<br/>Workflow]
+    end
+
+    subgraph AWS["AWS"]
+        OIDC[OIDC Provider<br/>token.actions.githubusercontent.com]
+        Role[IAM Role<br/>GitHubActionsOIDCRole]
+        CDK[CDK Deploy<br/>FilesApiCdkStack]
+    end
+
+    GA -->|AssumeRoleWithWebIdentity| OIDC
+    OIDC --> Role
+    Role --> CDK
+```
+
+| Component | Description |
+|-----------|-------------|
+| **API Gateway** | REST API (regional), `prod` stage; GET on `/`, ANY on `/{proxy+}`; X-Ray and access logging enabled. |
+| **Lambda** | `files-api` function (Python 3.12, ARM64); custom layer for dependencies; AWS Parameters and Secrets Lambda Extension to read SSM/Secrets Manager. |
+| **S3** | Bucket for file storage; Lambda has read/write access. |
+| **SSM Parameter Store** | SecureString `/files-api/openai-api-key` for OpenAI API key (created manually). |
+| **Observability** | CloudWatch Logs for Lambda and API Gateway access logs; X-Ray tracing for Lambda and API Gateway. |
+| **GitHub OIDC** | Optional stack (`github_oidc_infra.py`) creates an OIDC provider and IAM role so GitHub Actions can deploy the CDK stack without long-lived credentials. |
+
 ## Images
 
 ### Load Testing with Locust:
